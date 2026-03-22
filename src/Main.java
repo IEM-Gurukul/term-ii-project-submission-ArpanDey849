@@ -23,7 +23,7 @@ public class Main {
         
         System.out.println("=================================");
         System.out.println("    WELCOME TO ATM SIMULATION    ");
-        System.out.println("=================================");
+        
         
         // Start ATM
         atm.start();
