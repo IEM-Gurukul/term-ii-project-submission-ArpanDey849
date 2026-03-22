@@ -1,1 +1,176 @@
+package atm;
+
+import bank.Account;
+import bank.Bank;
+import transactions.*;
+import exceptions.*;
+import java.util.Scanner;
+
+public class ATM implements ATMOperations {
+    private Bank bank;
+    private double cashAvailable;
+    private Account currentAccount;
+    private Scanner scanner;
+    private boolean isRunning;
+    
+    public ATM(Bank bank, double initialCash) {
+        this.bank = bank;
+        this.cashAvailable = initialCash;
+        this.scanner = new Scanner(System.in);
+        this.isRunning = true;
+    }
+    
+    public void start() {
+        while (isRunning) {
+            if (currentAccount == null) {
+                login();
+            } else {
+                displayMenu();
+            }
+        }
+    }
+    
+    private void login() {
+        System.out.println("\n--- LOGIN ---");
+        System.out.print("Enter Card Number: ");
+        String cardNumber = scanner.nextLine();
+        
+        System.out.print("Enter PIN: ");
+        String pin = scanner.nextLine();
+        
+        try {
+            currentAccount = bank.authenticateAccount(cardNumber, pin);
+            System.out.println("Login successful! Welcome " + currentAccount.getCustomer().getName());
+        } catch (InvalidPinException e) {
+            System.out.println("Login failed: " + e.getMessage());
+        }
+    }
+    
+    private void displayMenu() {
+        System.out.println("\n=== ATM MENU ===");
+        System.out.println("1. Check Balance");
+        System.out.println("2. Withdraw");
+        System.out.println("3. Deposit");
+        System.out.println("4. Transfer");
+        System.out.println("5. Transaction History");
+        System.out.println("6. Logout");
+        System.out.print("Choose an option: ");
+        
+        String choice = scanner.nextLine();
+        
+        try {
+            switch (choice) {
+                case "1":
+                    checkBalance();
+                    break;
+                case "2":
+                    withdrawMenu();
+                    break;
+                case "3":
+                    depositMenu();
+                    break;
+                case "4":
+                    transferMenu();
+                    break;
+                case "5":
+                    viewTransactionHistory();
+                    break;
+                case "6":
+                    logout();
+                    break;
+                default:
+                    System.out.println("Invalid option!");
+            }
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+    
+    @Override
+    public void checkBalance() {
+        System.out.println("\n--- BALANCE INQUIRY ---");
+        System.out.println("Account Holder: " + currentAccount.getCustomer().getName());
+        System.out.println("Card Number: " + currentAccount.getCardNumber());
+        System.out.println("Current Balance: $" + String.format("%.2f", currentAccount.getBalance()));
+    }
+    
+    private void withdrawMenu() throws Exception {
+        System.out.print("\nEnter withdrawal amount: $");
+        double amount = Double.parseDouble(scanner.nextLine());
+        withdraw(amount);
+    }
+    
+    @Override
+    public void withdraw(double amount) throws Exception {
+        try {
+            if (amount > cashAvailable) {
+                throw new Exception("ATM does not have sufficient cash!");
+            }
+            Withdrawal withdrawal = new Withdrawal(currentAccount, amount);
+            withdrawal.execute();
+            cashAvailable -= amount;
+            printReceipt("Withdrawal", amount);
+        } catch (InsufficientFundsException e) {
+            System.out.println("Withdrawal failed: " + e.getMessage());
+        }
+    }
+    
+    private void depositMenu() throws Exception {
+        System.out.print("\nEnter deposit amount: $");
+        double amount = Double.parseDouble(scanner.nextLine());
+        deposit(amount);
+    }
+    
+    @Override
+    public void deposit(double amount) throws Exception {
+        Deposit deposit = new Deposit(currentAccount, amount);
+        deposit.execute();
+        cashAvailable += amount;
+        printReceipt("Deposit", amount);
+    }
+    
+    private void transferMenu() throws Exception {
+        System.out.print("\nEnter recipient card number: ");
+        String recipientCard = scanner.nextLine();
+        
+        System.out.print("Enter transfer amount: $");
+        double amount = Double.parseDouble(scanner.nextLine());
+        
+        transfer(recipientCard, amount);
+    }
+    
+    @Override
+    public void transfer(String recipientCard, double amount) throws Exception {
+        Transfer transfer = new Transfer(currentAccount, recipientCard, amount, bank);
+        transfer.execute();
+        printReceipt("Transfer", amount);
+    }
+    
+    @Override
+    public void viewTransactionHistory() {
+        System.out.println("\n--- TRANSACTION HISTORY ---");
+        if (currentAccount.getTransactionHistory().isEmpty()) {
+            System.out.println("No transactions found!");
+        } else {
+            for (String transaction : currentAccount.getTransactionHistory()) {
+                System.out.println("- " + transaction);
+            }
+        }
+    }
+    
+    @Override
+    public void logout() {
+        System.out.println("Thank you for using ATM. Goodbye!");
+        currentAccount = null;
+        isRunning = false;
+    }
+    
+    private void printReceipt(String transactionType, double amount) {
+        System.out.println("\n=== RECEIPT ===");
+        System.out.println("Transaction Type: " + transactionType);
+        System.out.println("Amount: $" + String.format("%.2f", amount));
+        System.out.println("Remaining Balance: $" + String.format("%.2f", currentAccount.getBalance()));
+        System.out.println("=================");
+    }
+}
 
